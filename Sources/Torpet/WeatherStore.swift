@@ -14,6 +14,9 @@ final class WeatherStore: ObservableObject {
     @Published var isLoading = false
     @Published var needsSetup = false
     @Published var showSettings = false
+    @Published var language: AppLanguage = L.lang {
+        didSet { UserDefaults.standard.set(language.rawValue, forKey: L.key) }
+    }
 
     @Published var series: SeriesKey? { didSet { if series != oldValue { loadHistory() } } }
     @Published var span: Span = .day { didSet { if span != oldValue { loadHistory() } } }
@@ -117,8 +120,8 @@ final class WeatherStore: ObservableObject {
     var menuTitle: String {
         guard let s = station else { return needsSetup ? "Torpet –" : "Torpet …" }
         var parts: [String] = []
-        if let t = s.outdoor?.number("Temperature") { parts.append("Ute " + Fmt.deg(t)) }
-        if let t = s.indoor?.number("Temperature") { parts.append("Inne " + Fmt.deg(t)) }
+        if let t = s.outdoor?.number("Temperature") { parts.append(L.t("Ute ", "Out ") + Fmt.deg(t)) }
+        if let t = s.indoor?.number("Temperature") { parts.append(L.t("Inne ", "In ") + Fmt.deg(t)) }
         return parts.isEmpty ? "Torpet –" : parts.joined(separator: "  ")
     }
 
@@ -130,7 +133,7 @@ final class WeatherStore: ObservableObject {
             do {
                 if newValue { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             } catch {
-                self.error = "Kunde inte ändra start vid inloggning: \(error.localizedDescription)"
+                self.error = L.t("Kunde inte ändra start vid inloggning: ", "Couldn't change launch at login: ") + error.localizedDescription
             }
             objectWillChange.send()
         }

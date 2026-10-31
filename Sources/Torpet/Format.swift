@@ -1,24 +1,24 @@
 import Foundation
 
 enum Fmt {
-    static let sv = Locale(identifier: "sv_SE")
+    static var locale: Locale { Locale(identifier: L.isSwedish ? "sv_SE" : "en_GB") }
 
     static func num(_ v: Double, decimals: Int = 1) -> String {
-        v.formatted(.number.precision(.fractionLength(decimals)).locale(sv))
+        v.formatted(.number.precision(.fractionLength(decimals)).locale(locale))
     }
 
     static func deg(_ v: Double?) -> String { v.map { num($0) + "°" } ?? "–" }
 
     static func time(_ d: Date) -> String {
         Calendar.current.isDateInToday(d)
-            ? d.formatted(.dateTime.hour().minute().locale(sv))
-            : d.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(sv))
+            ? d.formatted(.dateTime.hour().minute().locale(locale))
+            : d.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(locale))
     }
 
     static func ago(_ d: Date, now: Date = Date()) -> String {
         let m = Int(now.timeIntervalSince(d) / 60)
-        if m < 1 { return "nyss" }
-        if m < 60 { return "\(m) min sedan" }
+        if m < 1 { return L.t("nyss", "just now") }
+        if m < 60 { return L.t("\(m) min sedan", "\(m) min ago") }
         return time(d)
     }
 
@@ -32,43 +32,45 @@ enum Fmt {
 
     static func trendWord(_ s: String?) -> String {
         switch s {
-        case "up": "stiger"
-        case "down": "sjunker"
-        case "stable": "stabil"
+        case "up": L.t("stiger", "rising")
+        case "down": L.t("sjunker", "falling")
+        case "stable": L.t("stabil", "stable")
         default: s ?? "–"
         }
     }
 
     static func compass(_ angle: Double) -> String {
         guard angle >= 0 else { return "–" }
-        let dirs = ["N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO", "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV"]
+        let dirs = L.isSwedish
+            ? ["N", "NNO", "NO", "ONO", "O", "OSO", "SO", "SSO", "S", "SSV", "SV", "VSV", "V", "VNV", "NV", "NNV"]
+            : ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
         return dirs[Int((angle / 22.5).rounded()) % 16] + " (\(Int(angle))°)"
     }
 
     /// Netatmos rf_status: lägre är bättre (90 svag, 60 stark).
     static func radio(_ v: Int) -> String {
         switch v {
-        case ..<70: "stark"
-        case ..<80: "medel"
-        default: "svag"
+        case ..<70: L.t("stark", "strong")
+        case ..<80: L.t("medel", "fair")
+        default: L.t("svag", "weak")
         }
     }
 
     /// wifi_status: 86 svag, 56 stark.
     static func wifi(_ v: Int) -> String {
         switch v {
-        case ..<66: "stark"
-        case ..<76: "medel"
-        default: "svag"
+        case ..<66: L.t("stark", "strong")
+        case ..<76: L.t("medel", "fair")
+        default: L.t("svag", "weak")
         }
     }
 
     static func moduleTitle(_ m: Module) -> String {
         switch m.kind {
-        case .indoor: "Inne"
-        case .outdoor: "Ute"
-        case .wind: "Vind"
-        case .rain: "Regn"
+        case .indoor: L.t("Inne", "Indoor")
+        case .outdoor: L.t("Ute", "Outdoor")
+        case .wind: L.t("Vind", "Wind")
+        case .rain: L.t("Regn", "Rain")
         case .extraIndoor, .unknown: m.name
         }
     }
@@ -102,44 +104,44 @@ extension Module {
             rows.append(ValueRow(label: label, value: format(v)))
         }
         func at(_ key: String) -> String {
-            number(key).map { " kl " + Date(timeIntervalSince1970: $0).formatted(.dateTime.hour().minute().locale(Fmt.sv)) } ?? ""
+            number(key).map { L.t(" kl ", " at ") + Date(timeIntervalSince1970: $0).formatted(.dateTime.hour().minute().locale(Fmt.locale)) } ?? ""
         }
 
-        add("Temperature", "Temperatur") { Fmt.deg($0) + " " + Fmt.trend(values["temp_trend"]?.string) }
-        add("min_temp", "Min i dag") { Fmt.deg($0) + at("date_min_temp") }
-        add("max_temp", "Max i dag") { Fmt.deg($0) + at("date_max_temp") }
-        if let t = values["temp_trend"]?.string { used.insert("temp_trend"); rows.append(.init(label: "Temperaturtrend", value: Fmt.trendWord(t))) }
-        add("Humidity", "Luftfuktighet") { "\(Int($0)) %" }
-        add("CO2", "Koldioxid") { "\(Int($0)) ppm" }
-        add("Noise", "Ljud") { "\(Int($0)) dB" }
-        add("Pressure", "Lufttryck") { Fmt.num($0) + " mbar " + Fmt.trend(values["pressure_trend"]?.string) }
-        add("AbsolutePressure", "Absolut tryck") { Fmt.num($0) + " mbar" }
-        if let t = values["pressure_trend"]?.string { used.insert("pressure_trend"); rows.append(.init(label: "Trycktrend", value: Fmt.trendWord(t))) }
-        add("WindStrength", "Vind") { Fmt.num($0 / 3.6) + " m/s" }
-        add("WindAngle", "Vindriktning") { Fmt.compass($0) }
-        add("GustStrength", "Byar") { Fmt.num($0 / 3.6) + " m/s" }
-        add("GustAngle", "Byarnas riktning") { Fmt.compass($0) }
-        add("max_wind_str", "Max vind i dag") { Fmt.num($0 / 3.6) + " m/s" + at("date_max_wind_str") }
-        add("max_wind_angle", "Riktning vid max") { Fmt.compass($0) }
-        add("Rain", "Regn senaste 5 min") { Fmt.num($0) + " mm" }
-        add("sum_rain_1", "Regn senaste timmen") { Fmt.num($0) + " mm" }
-        add("sum_rain_24", "Regn i dag") { Fmt.num($0) + " mm" }
+        add("Temperature", L.t("Temperatur", "Temperature")) { Fmt.deg($0) + " " + Fmt.trend(values["temp_trend"]?.string) }
+        add("min_temp", L.t("Min i dag", "Min today")) { Fmt.deg($0) + at("date_min_temp") }
+        add("max_temp", L.t("Max i dag", "Max today")) { Fmt.deg($0) + at("date_max_temp") }
+        if let t = values["temp_trend"]?.string { used.insert("temp_trend"); rows.append(.init(label: L.t("Temperaturtrend", "Temperature trend"), value: Fmt.trendWord(t))) }
+        add("Humidity", L.t("Luftfuktighet", "Humidity")) { "\(Int($0)) %" }
+        add("CO2", L.t("Koldioxid", "CO₂")) { "\(Int($0)) ppm" }
+        add("Noise", L.t("Ljud", "Noise")) { "\(Int($0)) dB" }
+        add("Pressure", L.t("Lufttryck", "Pressure")) { Fmt.num($0) + " mbar " + Fmt.trend(values["pressure_trend"]?.string) }
+        add("AbsolutePressure", L.t("Absolut tryck", "Absolute pressure")) { Fmt.num($0) + " mbar" }
+        if let t = values["pressure_trend"]?.string { used.insert("pressure_trend"); rows.append(.init(label: L.t("Trycktrend", "Pressure trend"), value: Fmt.trendWord(t))) }
+        add("WindStrength", L.t("Vind", "Wind")) { Fmt.num($0 / 3.6) + " m/s" }
+        add("WindAngle", L.t("Vindriktning", "Wind direction")) { Fmt.compass($0) }
+        add("GustStrength", L.t("Byar", "Gusts")) { Fmt.num($0 / 3.6) + " m/s" }
+        add("GustAngle", L.t("Byarnas riktning", "Gust direction")) { Fmt.compass($0) }
+        add("max_wind_str", L.t("Max vind i dag", "Max wind today")) { Fmt.num($0 / 3.6) + " m/s" + at("date_max_wind_str") }
+        add("max_wind_angle", L.t("Riktning vid max", "Max wind direction")) { Fmt.compass($0) }
+        add("Rain", L.t("Regn senaste 5 min", "Rain last 5 min")) { Fmt.num($0) + " mm" }
+        add("sum_rain_1", L.t("Regn senaste timmen", "Rain last hour")) { Fmt.num($0) + " mm" }
+        add("sum_rain_24", L.t("Regn i dag", "Rain today")) { Fmt.num($0) + " mm" }
 
         for (k, v) in values.sorted(by: { $0.key < $1.key }) where !used.contains(k) {
             let s: String = switch v {
             case .number(let d): d == d.rounded() ? String(Int(d)) : Fmt.num(d, decimals: 2)
             case .string(let s): s
-            case .bool(let b): b ? "ja" : "nej"
+            case .bool(let b): b ? L.t("ja", "yes") : L.t("nej", "no")
             case .other: "–"
             }
             rows.append(ValueRow(label: k, value: s))
         }
 
-        if let b = battery { rows.append(.init(label: "Batteri", value: "\(b) %")) }
-        if let r = rfStatus { rows.append(.init(label: "Radiosignal", value: "\(Fmt.radio(r)) (\(r))")) }
+        if let b = battery { rows.append(.init(label: L.t("Batteri", "Battery"), value: "\(b) %")) }
+        if let r = rfStatus { rows.append(.init(label: L.t("Radiosignal", "Radio signal"), value: "\(Fmt.radio(r)) (\(r))")) }
         if let w = wifiStatus { rows.append(.init(label: "Wifi", value: "\(Fmt.wifi(w)) (\(w))")) }
-        if !reachable { rows.append(.init(label: "Status", value: "Nås inte")) }
-        if let m = measuredAt { rows.append(.init(label: "Mätt", value: Fmt.time(m))) }
+        if !reachable { rows.append(.init(label: "Status", value: L.t("Nås inte", "Unreachable"))) }
+        if let m = measuredAt { rows.append(.init(label: L.t("Mätt", "Measured"), value: Fmt.time(m))) }
         return rows
     }
 }

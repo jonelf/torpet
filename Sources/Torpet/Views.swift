@@ -30,6 +30,7 @@ struct PopoverView: View {
             Footer(store: store)
         }
         .frame(width: 440)
+        .id(store.language)   // ritar om allt när språket byts
         .task { await store.refresh(ifOlderThan: 120) }
     }
 
@@ -69,8 +70,8 @@ private struct Header: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(store.station?.name ?? "Torpet").font(.headline)
                 if let s = store.station {
-                    let place = [s.city, s.altitude.map { "\(Int($0)) m ö.h." }].compactMap { $0 }.joined(separator: " · ")
-                    let measured = (s.outdoor ?? s.indoor)?.measuredAt.map { "Mätt " + Fmt.time($0) } ?? ""
+                    let place = [s.city, s.altitude.map { "\(Int($0)) " + L.t("m ö.h.", "m a.s.l.") }].compactMap { $0 }.joined(separator: " · ")
+                    let measured = (s.outdoor ?? s.indoor)?.measuredAt.map { L.t("Mätt ", "Measured ") + Fmt.time($0) } ?? ""
                     Text([place, measured].filter { !$0.isEmpty }.joined(separator: " · "))
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -80,11 +81,11 @@ private struct Header: View {
             Button { Task { await store.refresh(); store.loadHistory(force: true) } } label: {
                 Image(systemName: "arrow.clockwise")
             }
-            .buttonStyle(.borderless).help("Hämta nu")
+            .buttonStyle(.borderless).help(L.t("Hämta nu", "Refresh now"))
             Button { store.showSettings.toggle() } label: {
                 Image(systemName: store.showSettings ? "xmark.circle" : "gearshape")
             }
-            .buttonStyle(.borderless).help("Inställningar")
+            .buttonStyle(.borderless).help(L.t("Inställningar", "Settings"))
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
     }
@@ -96,10 +97,10 @@ private struct Footer: View {
     var body: some View {
         HStack {
             if let f = store.fetchedAt {
-                Text("Hämtad " + Fmt.ago(f)).font(.caption).foregroundStyle(.secondary)
+                Text(L.t("Hämtad ", "Fetched ") + Fmt.ago(f)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Button("Avsluta") { NSApp.terminate(nil) }.buttonStyle(.borderless).font(.caption)
+            Button(L.t("Avsluta", "Quit")) { NSApp.terminate(nil) }.buttonStyle(.borderless).font(.caption)
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
     }
@@ -110,9 +111,9 @@ private struct Overview: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            big("Ute", station.outdoor, icon: "tree")
+            big(L.t("Ute", "Outdoor"), station.outdoor, icon: "tree")
             Divider().frame(height: 54)
-            big("Inne", station.indoor, icon: "house")
+            big(L.t("Inne", "Indoor"), station.indoor, icon: "house")
         }
         .padding(.vertical, 8)
         .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
@@ -177,7 +178,7 @@ private struct HistoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Historik").font(.subheadline.weight(.semibold))
+                Text(L.t("Historik", "History")).font(.subheadline.weight(.semibold))
                 Spacer()
                 Picker("", selection: $store.series) {
                     ForEach(options, id: \.0) { Text($0.1).tag(Optional($0.0)) }
@@ -193,7 +194,7 @@ private struct HistoryView: View {
                 chart.frame(height: 170)
                 if store.historyLoading && store.history.isEmpty { ProgressView() }
                 if let e = store.historyError { Text(e).font(.caption).foregroundStyle(.orange) }
-                else if !store.historyLoading && store.history.isEmpty { Text("Ingen data").font(.caption).foregroundStyle(.secondary) }
+                else if !store.historyLoading && store.history.isEmpty { Text(L.t("Ingen data", "No data")).font(.caption).foregroundStyle(.secondary) }
             }
             summary
         }
@@ -201,6 +202,8 @@ private struct HistoryView: View {
     }
 
     private var unit: String { measure.unit }
+    private var avgName: String { L.t("Medel", "Average") }
+    private var gustName: String { L.t("Byar", "Gusts") }
 
     @ViewBuilder private var chart: some View {
         let pts = store.history
@@ -212,11 +215,11 @@ private struct HistoryView: View {
                     BarMark(x: .value("Tid", p.date), y: .value("mm", p.value))
                         .foregroundStyle(.blue)
                 case .wind:
-                    LineMark(x: .value("Tid", p.date), y: .value("m/s", p.value), series: .value("Serie", "Medel"))
-                        .foregroundStyle(by: .value("Serie", "Medel"))
+                    LineMark(x: .value("Tid", p.date), y: .value("m/s", p.value), series: .value("Serie", avgName))
+                        .foregroundStyle(by: .value("Serie", avgName))
                     if let g = p.high {
-                        LineMark(x: .value("Tid", p.date), y: .value("m/s", g), series: .value("Serie", "Byar"))
-                            .foregroundStyle(by: .value("Serie", "Byar"))
+                        LineMark(x: .value("Tid", p.date), y: .value("m/s", g), series: .value("Serie", gustName))
+                            .foregroundStyle(by: .value("Serie", gustName))
                     }
                 default:
                     if ranged, let lo = p.low, let hi = p.high {
@@ -229,7 +232,7 @@ private struct HistoryView: View {
                 }
             }
         }
-        .chartForegroundStyleScale(["Medel": Color.teal, "Byar": Color.orange])
+        .chartForegroundStyleScale([avgName: Color.teal, gustName: Color.orange])
         .chartLegend(measure == .wind ? .visible : .hidden)
         .chartYScale(domain: yDomain(pts))
         .chartXAxis {
@@ -274,10 +277,10 @@ private struct HistoryView: View {
 
     private func axisLabel(_ d: Date) -> String {
         switch store.span {
-        case .day: d.formatted(.dateTime.hour().minute().locale(Fmt.sv))
-        case .week: d.formatted(.dateTime.weekday(.abbreviated).locale(Fmt.sv))
-        case .month: d.formatted(.dateTime.day().month(.abbreviated).locale(Fmt.sv))
-        case .year: d.formatted(.dateTime.month(.abbreviated).locale(Fmt.sv))
+        case .day: d.formatted(.dateTime.hour().minute().locale(Fmt.locale))
+        case .week: d.formatted(.dateTime.weekday(.abbreviated).locale(Fmt.locale))
+        case .month: d.formatted(.dateTime.day().month(.abbreviated).locale(Fmt.locale))
+        case .year: d.formatted(.dateTime.month(.abbreviated).locale(Fmt.locale))
         }
     }
 
@@ -291,11 +294,11 @@ private struct HistoryView: View {
             let avg = pts.map(\.value).reduce(0, +) / Double(pts.count)
             Group {
                 if measure == .rain {
-                    Text("Totalt \(f(pts.map(\.value).reduce(0, +)))  ·  Mest \(f(hi))")
+                    Text(L.t("Totalt", "Total") + " \(f(pts.map(\.value).reduce(0, +)))  ·  " + L.t("Mest", "Most") + " \(f(hi))")
                 } else if measure == .wind {
-                    Text("Medel \(f(avg))  ·  Starkaste by \(f(hi))")
+                    Text(L.t("Medel", "Average") + " \(f(avg))  ·  " + L.t("Starkaste by", "Strongest gust") + " \(f(hi))")
                 } else {
-                    Text("Min \(f(lo))  ·  Max \(f(hi))  ·  Medel \(f(avg))")
+                    Text("Min \(f(lo))  ·  Max \(f(hi))  ·  " + L.t("Medel", "Average") + " \(f(avg))")
                 }
             }
             .font(.caption).foregroundStyle(.secondary).monospacedDigit()
@@ -315,16 +318,17 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Netatmo").font(.subheadline.weight(.semibold))
-            Text("Skapa en app på dev.netatmo.com (My apps). Kopiera client ID och client secret, och ta fram en refresh-token med Token generator, scope read_station. Använd en egen token här: samma token som TV:n använder låser ute den ena.")
+            Text(L.t("Skapa en app på dev.netatmo.com (My apps). Kopiera client ID och client secret, och ta fram en refresh-token med Token generator, scope read_station. Använd en egen token här: Netatmo byter token vid varje förnyelse, så två ställen med samma token låser ute det ena.",
+                     "Create an app at dev.netatmo.com (My apps). Copy the client ID and client secret, and generate a refresh token with the Token generator, scope read_station. Use a token of its own here: Netatmo replaces the token on every renewal, so two clients sharing one lock each other out."))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             TextField("Client ID", text: $clientID)
             SecureField("Client secret", text: $clientSecret)
             SecureField("Refresh token", text: $refreshToken)
             HStack {
-                Link("Öppna dev.netatmo.com", destination: URL(string: "https://dev.netatmo.com/apps/")!).font(.caption)
+                Link(L.t("Öppna dev.netatmo.com", "Open dev.netatmo.com"), destination: URL(string: "https://dev.netatmo.com/apps/")!).font(.caption)
                 Spacer()
                 if saving { ProgressView().controlSize(.small) }
-                Button("Spara") {
+                Button(L.t("Spara", "Save")) {
                     saving = true
                     Task {
                         await store.saveCredentials(clientID: clientID, clientSecret: clientSecret, refreshToken: refreshToken)
@@ -336,8 +340,12 @@ struct SettingsView: View {
                 .disabled(clientID.isEmpty || clientSecret.isEmpty || refreshToken.isEmpty || saving)
             }
             Divider()
-            Toggle("Starta vid inloggning", isOn: Binding(get: { store.launchAtLogin }, set: { store.launchAtLogin = $0 }))
-            Text("Nycklarna sparas i \(CredentialStore.url.path(percentEncoded: false)).")
+            Picker(L.t("Språk", "Language"), selection: $store.language) {
+                ForEach(AppLanguage.allCases) { Text($0.name).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Toggle(L.t("Starta vid inloggning", "Launch at login"), isOn: Binding(get: { store.launchAtLogin }, set: { store.launchAtLogin = $0 }))
+            Text(L.t("Nycklarna sparas i ", "Credentials are stored in ") + CredentialStore.url.path(percentEncoded: false) + ".")
                 .font(.caption2).foregroundStyle(.tertiary).textSelection(.enabled)
         }
         .textFieldStyle(.roundedBorder)

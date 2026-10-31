@@ -106,13 +106,13 @@ enum Measure: String, CaseIterable, Sendable {
 
     var label: String {
         switch self {
-        case .temperature: "Temperatur"
-        case .humidity: "Luftfuktighet"
-        case .co2: "Koldioxid"
-        case .pressure: "Lufttryck"
-        case .noise: "Ljud"
-        case .rain: "Regn"
-        case .wind: "Vind"
+        case .temperature: L.t("Temperatur", "Temperature")
+        case .humidity: L.t("Luftfuktighet", "Humidity")
+        case .co2: L.t("Koldioxid", "CO₂")
+        case .pressure: L.t("Lufttryck", "Pressure")
+        case .noise: L.t("Ljud", "Noise")
+        case .rain: L.t("Regn", "Rain")
+        case .wind: L.t("Vind", "Wind")
         }
     }
 
@@ -146,10 +146,10 @@ enum Span: String, CaseIterable, Identifiable, Sendable {
 
     var label: String {
         switch self {
-        case .day: "Dygn"
-        case .week: "Vecka"
-        case .month: "Månad"
-        case .year: "År"
+        case .day: L.t("Dygn", "Day")
+        case .week: L.t("Vecka", "Week")
+        case .month: L.t("Månad", "Month")
+        case .year: L.t("År", "Year")
         }
     }
 
@@ -238,10 +238,11 @@ enum NetatmoError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: "Netatmo-nycklar saknas."
-        case .tokenRejected: "Netatmo godtog inte refresh-token. Lägg in en ny under Inställningar."
-        case .http(let code, let msg): "Netatmo svarade \(code)\(msg.isEmpty ? "" : ": \(msg)")"
-        case .noStation: "Ingen väderstation i kontot."
+        case .notConfigured: L.t("Netatmo-nycklar saknas.", "Netatmo credentials are missing.")
+        case .tokenRejected: L.t("Netatmo godtog inte refresh-token. Lägg in en ny under Inställningar.",
+                                  "Netatmo rejected the refresh token. Enter a new one in Settings.")
+        case .http(let code, let msg): L.t("Netatmo svarade", "Netatmo responded") + " \(code)\(msg.isEmpty ? "" : ": \(msg)")"
+        case .noStation: L.t("Ingen väderstation i kontot.", "No weather station in the account.")
         }
     }
 }
@@ -378,7 +379,7 @@ actor NetatmoClient {
                 lastSeen: d.last_status_store.map { Date(timeIntervalSince1970: $0) })
             let mods = (d.modules ?? []).map { m in
                 Module(
-                    id: m._id, deviceID: d._id, type: m.type ?? "", name: m.module_name ?? m.type ?? "Modul",
+                    id: m._id, deviceID: d._id, type: m.type ?? "", name: m.module_name ?? m.type ?? "Module",
                     values: m.dashboard_data ?? [:], dataTypes: m.data_type ?? [], battery: m.battery_percent,
                     rfStatus: m.rf_status, wifiStatus: nil, reachable: m.reachable ?? true,
                     lastSeen: m.last_seen.map { Date(timeIntervalSince1970: $0) })
@@ -387,7 +388,7 @@ actor NetatmoClient {
             let sorted = ([base] + mods).sorted {
                 order.firstIndex(of: $0.kind)! < order.firstIndex(of: $1.kind)!
             }
-            return Station(id: d._id, name: d.station_name ?? d.home_name ?? "Väderstation",
+            return Station(id: d._id, name: d.station_name ?? d.home_name ?? L.t("Väderstation", "Weather station"),
                            city: d.place?.city, altitude: d.place?.altitude, modules: sorted)
         }
     }
