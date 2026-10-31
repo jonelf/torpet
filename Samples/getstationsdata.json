@@ -1,0 +1,12 @@
+{"body":{"devices":[{"_id":"70:ee:50:00:00:01","type":"NAMain","station_name":"Torpet","home_name":"Torpet","module_name":"Inne","reachable":true,"wifi_status":58,"last_status_store":1793464343,
+"place":{"altitude":32,"country":"SE","timezone":"Europe/Stockholm"},
+"data_type":["Temperature","CO2","Humidity","Noise","Pressure"],
+"dashboard_data":{"time_utc":1793464343,"Temperature":12.5,"CO2":612,"Humidity":67,"Noise":36,"Pressure":1008.4,"AbsolutePressure":1004.6,"min_temp":11.9,"max_temp":13.1,"date_min_temp":1793434343,"date_max_temp":1793458343,"temp_trend":"stable","pressure_trend":"down"},
+"modules":[
+{"_id":"02:00:00:00:00:01","type":"NAModule1","module_name":"Ute","reachable":true,"battery_percent":78,"rf_status":68,"last_seen":1793464343,"data_type":["Temperature","Humidity"],
+ "dashboard_data":{"time_utc":1793464343,"Temperature":4.2,"Humidity":91,"min_temp":-0.1,"max_temp":8.4,"date_min_temp":1793424343,"date_max_temp":1793455343,"temp_trend":"down"}},
+{"_id":"05:00:00:00:00:01","type":"NAModule3","module_name":"Regn","reachable":true,"battery_percent":64,"rf_status":72,"last_seen":1793464343,"data_type":["Rain"],
+ "dashboard_data":{"time_utc":1793464343,"Rain":0,"sum_rain_1":0.2,"sum_rain_24":3.1}},
+{"_id":"06:00:00:00:00:01","type":"NAModule2","module_name":"Vind","reachable":true,"battery_percent":81,"rf_status":75,"last_seen":1793464343,"data_type":["Wind"],
+ "dashboard_data":{"time_utc":1793464343,"WindStrength":14,"WindAngle":225,"GustStrength":29,"GustAngle":240,"max_wind_str":22,"max_wind_angle":210,"date_max_wind_str":1793452343}}
+]}],"user":{"mail":"x","administrative":{"lang":"sv","unit":0,"windunit":0,"pressureunit":0}}},"status":"ok"}
