@@ -1,3 +1,4 @@
+import SwiftUI
 import Foundation
 import ServiceManagement
 
@@ -117,12 +118,56 @@ final class WeatherStore: ObservableObject {
 
     // MARK: Menyraden
 
+    /// Temperaturer för menyraden: (SF Symbol, värde), ute först.
+    private var menuParts: [(icon: String, value: String)] {
+        guard let s = station else { return [] }
+        var parts: [(icon: String, value: String)] = []
+        if let t = s.outdoor?.number("Temperature") { parts.append(("tree", Fmt.deg(t))) }
+        if let t = s.indoor?.number("Temperature") { parts.append(("house", Fmt.deg(t))) }
+        return parts
+    }
+
+    private var menuFallback: String {
+        station == nil ? (needsSetup ? "Torpet –" : "Torpet …") : "Torpet –"
+    }
+
+    /// Menyraden visar inte symboler inuti Text, så etiketten ritas som en mallbild
+    /// (template) som systemet färgar för ljust/mörkt läge.
+    var menuLabel: some View {
+        let parts = menuParts
+        return Group {
+            if parts.isEmpty {
+                Text(menuFallback)
+            } else if let img = Self.menuImage(parts) {
+                Image(nsImage: img)
+            } else {
+                Text(menuTitle)
+            }
+        }
+    }
+
+    private static func menuImage(_ parts: [(icon: String, value: String)]) -> NSImage? {
+        let view = HStack(spacing: 8) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
+                HStack(spacing: 3) {
+                    Image(systemName: p.icon)
+                    Text(p.value).monospacedDigit()
+                }
+            }
+        }
+        .font(.system(size: 13))
+        .foregroundStyle(.black)
+        .padding(.vertical, 1)
+        let r = ImageRenderer(content: view)
+        r.scale = NSScreen.main?.backingScaleFactor ?? 2
+        guard let img = r.nsImage else { return nil }
+        img.isTemplate = true
+        return img
+    }
+
     var menuTitle: String {
-        guard let s = station else { return needsSetup ? "Torpet –" : "Torpet …" }
-        var parts: [String] = []
-        if let t = s.outdoor?.number("Temperature") { parts.append(L.t("Ute ", "Out ") + Fmt.deg(t)) }
-        if let t = s.indoor?.number("Temperature") { parts.append(L.t("Inne ", "In ") + Fmt.deg(t)) }
-        return parts.isEmpty ? "Torpet –" : parts.joined(separator: "  ")
+        let parts = menuParts
+        return parts.isEmpty ? menuFallback : parts.map { "[\($0.icon)] \($0.value)" }.joined(separator: "  ")
     }
 
     // MARK: Starta vid inloggning

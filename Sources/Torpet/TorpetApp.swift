@@ -7,8 +7,7 @@ struct TorpetApp: App {
         MenuBarExtra {
             PopoverView(store: store)
         } label: {
-            Text(store.menuTitle)
-                .monospacedDigit()
+            store.menuLabel
                 .task { store.start() }
         }
         .menuBarExtraStyle(.window)
