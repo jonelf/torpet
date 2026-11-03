@@ -151,13 +151,14 @@ final class WeatherStore: ObservableObject {
             ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
                 HStack(spacing: 3) {
                     Image(systemName: p.icon)
-                    Text(p.value).monospacedDigit()
+                    Text(p.value).monospacedDigit().lineLimit(1).fixedSize()
                 }
             }
         }
         .font(.system(size: 13))
         .foregroundStyle(.black)
         .padding(.vertical, 1)
+        .fixedSize()
         let r = ImageRenderer(content: view)
         r.scale = NSScreen.main?.backingScaleFactor ?? 2
         guard let img = r.nsImage else { return nil }
