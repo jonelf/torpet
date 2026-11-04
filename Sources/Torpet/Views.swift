@@ -45,9 +45,14 @@ struct PopoverView: View {
                 SettingsView(store: store)
             } else if let s = store.station {
                 Overview(station: s)
-                LazyVGrid(columns: [GridItem(.flexible(), alignment: .top), GridItem(.flexible(), alignment: .top)],
-                          alignment: .leading, spacing: 10) {
-                    ForEach(s.modules.filter { $0.kind == .outdoor } + s.modules.filter { $0.kind != .outdoor }) { ModuleCard(module: $0) }   // utomhus till vänster, som i översikten
+                // Två kolumner: utomhus (med regn/vind) till vänster, inomhus till höger, som i översikten
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(spacing: 10) {
+                        ForEach(s.modules.filter { $0.kind != .indoor && $0.kind != .extraIndoor }) { ModuleCard(module: $0) }
+                    }
+                    VStack(spacing: 10) {
+                        ForEach(s.modules.filter { $0.kind == .indoor || $0.kind == .extraIndoor }) { ModuleCard(module: $0) }
+                    }
                 }
                 HistoryView(store: store, station: s)
             } else {
