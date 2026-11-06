@@ -24,6 +24,8 @@ final class WeatherStore: ObservableObject {
     @Published var history: [MeasurePoint] = []
     @Published var historyError: String?
     @Published var historyLoading = false
+    /// Vilken temperatur menyraden visar just nu; räknas upp var sjunde minut.
+    @Published private var menuIndex = 0
 
     let client = NetatmoClient()
     private var historyCache: [String: (points: [MeasurePoint], at: Date)] = [:]
@@ -34,6 +36,8 @@ final class WeatherStore: ObservableObject {
 
     /// Netatmo-stationen skickar data var tionde minut.
     private let interval: TimeInterval = 10 * 60
+    /// Menyraden växlar mellan ute och inne så här ofta.
+    private let menuCycle: TimeInterval = 7 * 60
 
     func start() {
         guard !started else { return }
@@ -44,6 +48,12 @@ final class WeatherStore: ObservableObject {
             while true {
                 await refresh()
                 try? await Task.sleep(for: .seconds(interval))
+            }
+        }
+        Task {
+            while true {
+                try? await Task.sleep(for: .seconds(menuCycle))
+                menuIndex += 1
             }
         }
     }
@@ -118,13 +128,14 @@ final class WeatherStore: ObservableObject {
 
     // MARK: Menyraden
 
-    /// Temperaturer för menyraden: (SF Symbol, värde), ute först.
+    /// Temperatur för menyraden: (SF Symbol, värde). Växlar mellan ute och inne, ute först.
     private var menuParts: [(icon: String, value: String)] {
         guard let s = station else { return [] }
         var parts: [(icon: String, value: String)] = []
         if let t = s.outdoor?.number("Temperature") { parts.append(("tree", Fmt.deg(t))) }
         if let t = s.indoor?.number("Temperature") { parts.append(("house", Fmt.deg(t))) }
-        return parts
+        guard !parts.isEmpty else { return [] }
+        return [parts[menuIndex % parts.count]]
     }
 
     private var menuFallback: String {
